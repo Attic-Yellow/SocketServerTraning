@@ -18,13 +18,16 @@ public class ServerManager : MonoBehaviour
 
     public Thread serverThread = null;
 
-    [SerializeField] private TextMeshProUGUI LogText;
+    [SerializeField] private Button connectButton;
+    [SerializeField] private TextMeshProUGUI logText;
+    [SerializeField] private RectTransform textArea;
 
     [SerializeField] private string ipAddress = "127.0.0.1";
     [SerializeField] private int port = 9999;
 
-    [SerializeField] private Queue<string> log = new Queue<string>();
-    [SerializeField] private Button connectButton;
+    public static Queue<string> log = new Queue<string>();
+
+    private List<ClientHandler> clientList = new List<ClientHandler>();
 
     [SerializeField] private bool isServerConnected;
 
@@ -44,7 +47,7 @@ public class ServerManager : MonoBehaviour
             isServerConnected = !isServerConnected;
         }
     }
-    
+    private int clientId = 0;
     // 서버에서 패킷을 받는 프로세스를 실행
     private void ServerStart()
     {
@@ -57,6 +60,24 @@ public class ServerManager : MonoBehaviour
 
             log.Enqueue("Server Start");
 
+            while (true)
+            {
+                TcpClient client = tcpSocjketListener.AcceptTcpClient();
+
+                ClientHandler handler = new ClientHandler();
+
+                handler.Connect(client, this, clientId++);
+
+                clientList.Add(handler);
+
+                Thread clientThread = new Thread(handler.Run);
+                clientThread.IsBackground = true;
+                clientThread.Start();
+
+                log.Enqueue($"{handler.id} Client Conneted");
+            }
+
+            return;
             TcpClient tcpClient = tcpSocjketListener.AcceptTcpClient();
 
             log.Enqueue("Client Connected");
@@ -91,7 +112,79 @@ public class ServerManager : MonoBehaviour
     {
         if (log.Count > 0)
         {
-            LogText.text += $"\n{ log.Dequeue()}";
+            var logText = Instantiate(this.logText, textArea);
+            logText.text = log.Dequeue();
+        }
+    }
+
+    public void BroadcastToClients(string message)
+    {
+        log.Enqueue(message);
+
+        foreach (ClientHandler client in clientList)
+        {
+            client.MessageToClient(message);
+        }
+    }
+}
+
+public class ClientHandler
+{
+    public int id;
+    public ServerManager server;
+    public TcpClient client;
+    public StreamReader reader;
+    public StreamWriter writer;
+
+    public void Connect(TcpClient client, ServerManager manager, int id)
+    {
+        this.server = manager;
+        this.id = id;
+        this.client = client;
+        reader = new StreamReader(client.GetStream());
+        writer = new StreamWriter(client.GetStream());
+        writer.AutoFlush = true;
+    }
+
+    public void DisConnect()
+    {
+        writer.Close();
+        reader.Close();
+        client.Close();
+    }
+
+    public void MessageToClient(string message)
+    {
+        writer.WriteLine(message);
+    }
+
+    public void Run()
+    {
+        try
+        {
+            while (client.Connected)
+            {
+                string readString = reader.ReadLine();
+                if (string.IsNullOrEmpty(readString))
+                {
+                    continue;
+                }
+
+                //ServerManager.log.Enqueue(readString);
+                //MessageToClient(readString);
+
+                server.BroadcastToClients($"{id} : {readString}");
+
+            }
+
+        }
+        catch
+        {
+
+        }
+        finally
+        {
+            DisConnect();
         }
     }
 }
