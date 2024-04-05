@@ -81,9 +81,8 @@ public class Client : MonoBehaviour
             var logTextBox = Instantiate(textBoxPrefab, content); // TextBox 인스턴스 생성
             var logText = logTextBox.GetComponentInChildren<TextMeshProUGUI>(); // TextBox 내의 TextMeshProUGUI 컴포넌트 찾기
             logText.text = message; // 메시지 설정
-            logText.rectTransform.sizeDelta = new Vector2(920, logText.rectTransform.sizeDelta.y);
             logText.enableWordWrapping = true; // 단어 줄바꿈 활성화
-            logText.overflowMode = TextOverflowModes.Overflow; // 텍스트가 박스를 넘어갈 경우 처리 방식 설정
+            //logText.overflowMode = TextOverflowModes.Overflow; // 텍스트가 박스를 넘어갈 경우 처리 방식 설정
             AdjustTextBoxHeight(logText, logTextBox); // 이전에 제공된 메서드를 호출하여 TextBox의 높이 조절
         }
     }
